@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
-from config import EPSILON, TOPICS, EMOTIONS, ALL_CHARS
-from data_helpers import normalizer, parse_col
+from .config import EPSILON, TOPICS, EMOTIONS, ALL_CHARS
+from .data_helpers import normalizer, parse_col
 
 
 def build_char_season_from_counts(df, metrics=None, char_count_cols=ALL_CHARS):
@@ -222,7 +222,6 @@ def make_per_topic_emotion_movement(char_season):
     for p_ in [per_topic_mov, per_topic_emotion_mov]:
         p_.set_index(['show', 'char', 'n_steps'], inplace=True)
 
-
     all_movement_df = per_topic_mov.join(per_topic_emotion_mov)
     return all_movement_df
 
@@ -238,9 +237,8 @@ def tidy_movement_df(all_movement_df):
         left_index=True,
         right_index=True
     )[['show', 'char', 'n_steps', 'topic', 'emotion', 'measure', 'value']]
-    
-    
-    tidy_df['emotion'] = tidy_df['emotion'].fillna("total")
+
+    # tidy_df['emotion'] = tidy_df['emotion'].fillna("total")
 
     tidy2 = tidy_df.pivot(index=["show", "char", "topic", "emotion", 'n_steps'],
                           columns="measure",

@@ -4,13 +4,15 @@ EPSILON = 0.01
 
 EMOTION_MODELS = [
     "michellejieli/emotion_text_classifier",
-    "mrm8488/t5-base-finetuned-emotion",
+    # "mrm8488/t5-base-finetuned-emotion",
     "cardiffnlp/twitter-roberta-base-emotion",
     "j-hartmann/emotion-english-distilroberta-base",
-    "cardiffnlp/twitter-roberta-base-emotion-latest"  # added later
+    "cardiffnlp/twitter-roberta-base-emotion-latest"
 ]
 
 TOXICITY_MODEL = "unitary/toxic-bert"
+
+TOPIC_MODEL = "facebook/bart-large-mnli"
 
 
 MAIN_CHARS = {
@@ -28,31 +30,54 @@ MAIN_CHARS = {
 
 }
 
-# can't remember if this works
 ALL_CHARS = MAIN_CHARS['asip'] + MAIN_CHARS['office'] + MAIN_CHARS['sp']
 
+SHOWS = ['asip', 'office', 'southpark']
+
 EMOTIONS = [
-    'anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'optimism'
+    'anger',
+    'anticipation',
+    'disgust',
+    'fear',
+    'joy',
+    'love',
+    'optimism',
+    'pessimism',
+    'sadness',
+    'surprise',
+    'trust'
 ]
 
 EMO_COLS = [
-    'anger_mjm', 
-    'disgust_mjm', 
-    'fear_mjm', 
+    'anger_mjm',
+    'disgust_mjm',
+    'fear_mjm',
     'joy_mjm',
-    'sadness_mjm', 
+    'sadness_mjm',
     'surprise_mjm',
-    'anger_cardiff', 
-    'joy_cardiff', 
+    'anger_cardiff',
+    'joy_cardiff',
     'optimism_cardiff',
-    'sadness_cardiff', 
-    'anger_hartmann', 
+    'sadness_cardiff',
+    'anger_hartmann',
     'disgust_hartmann',
-    'fear_hartmann', 
+    'fear_hartmann',
     'joy_hartmann',
     'sadness_hartmann',
     'surprise_hartmann',
+    'anger_new',
+    'anticipation_new',
+    'disgust_new',
+    'fear_new',
+    'joy_new',
+    'love_new',
+    'optimism_new',
+    'pessimism_new',
+    'sadness_new',
+    'surprise_new',
+    'trust_new'
 ]
+
 
 TOXIC_COLS = [
 
@@ -80,10 +105,21 @@ PREPRO = "merged_data_for_modeling_103025.csv"
 NEW_CARDIFF = "new_cardiff_results_111525.csv"
 
 # PLOTTING HELPERS
-EMOTION_ORDER = ['anger', 'disgust', 'fear',
-                 'joy', 'optimism', 'sadness', 'surprise']
+# EMOTION_ORDER = [
+#     'anger',
+#     'anticipation',
+#     'disgust',
+#     'fear',
+#     'joy',
+#     'love',
+#     'optimism',
+#     'pessimism',
+#     'sadness',
+#     'surprise',
+#     'trust'
+#     ]
 TOPIC_ORDER = ['LGBTQ issues', 'race and ethnicity', 'religion and faith']
-SHOW_ORDER = ['asip', 'office', 'southpark']
+
 
 TOPIC_PALETTE = {
     'LGBTQ issues':       '#2a9d8f',
@@ -97,12 +133,23 @@ LEGEND_LABELS = {
     'religion and faith': 'Religion',
 }
 
+SHOW_LABELS = {
+    'asip': "Always Sunny",
+    "office": "The Office",
+    "southpark": "South Park"
+}
+
 EMOTION_PALETTE = {
-    'anger':    '#d62728',
-    'disgust':  '#7a9a01',
-    'fear':     '#6a3d9a',
-    'joy':      '#ffb703',
-    'optimism': '#2a9d8f',
-    'sadness':  '#1f77b4',
-    'surprise': '#e377c2',
+    'anger':        '#d62728',   # red
+    'disgust':      '#7a9a01',   # olive green
+    'fear':         '#6a3d9a',   # deep purple
+    'joy':          '#ffb703',   # warm yellow
+    'optimism':     '#2a9d8f',   # teal
+    'sadness':      '#1f77b4',   # classic blue
+    'surprise':     '#e377c2',   # pink/magenta
+    'anticipation': '#f17c0f',   # orange (fits between joy + anger)
+    'love':         '#ff6b6b',   # warm coral (distinct from anger red)
+    'pessimism':    '#4b4b4b',   # charcoal grey (semantic match)
+    # clean green (balanced, distinct from disgust)
+    'trust':        '#4caf50',
 }

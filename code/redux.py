@@ -9,7 +9,7 @@ from gpu import StandardScaler, PCA
 
 
 def sil(char_season, category="show"):
-  print(silhouette_score(char_season[["umap1", "umap2"]],
+    print(silhouette_score(char_season[["umap1", "umap2"]],
                            char_season[category]))
 
 
@@ -79,7 +79,5 @@ def plot_umap(
     plt.show()
     if sil:
         sil_ = sil(char_season[["umap1", "umap2"]],
-                               char_season[category])
+                   char_season[category])
         print("Silhouette Score:", sil)
-
-

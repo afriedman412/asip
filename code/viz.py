@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from config import EMOTION_ORDER, TOPIC_ORDER, SHOW_ORDER, TOPIC_PALETTE, EMOTION_PALETTE, LEGEND_LABELS
+from .config import EMOTIONS, TOPICS, SHOWS, TOPIC_PALETTE, EMOTION_PALETTE, LEGEND_LABELS, TOPIC_ORDER
 
 
 def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
@@ -21,11 +21,11 @@ def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
 
     # Set emotion/topic ordering
     df['emotion'] = pd.Categorical(df['emotion'],
-                                   categories=EMOTION_ORDER,
+                                   categories=EMOTIONS,
                                    ordered=True)
 
     # Restrict topics to those actually present, but in canonical order
-    topics_present = [t for t in TOPIC_ORDER if t in df['topic'].unique()]
+    topics_present = [t for t in TOPICS if t in df['topic'].unique()]
     df['topic'] = pd.Categorical(df['topic'],
                                  categories=topics_present,
                                  ordered=True)
@@ -58,9 +58,9 @@ def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
 
     # X tick labels
     ax.tick_params(axis="x", labelrotation=0, labelsize=10)
-    ax.set_xticks(range(len(EMOTION_ORDER)))
+    ax.set_xticks(range(len(EMOTIONS)))
     ax.set_xticklabels(
-        [e.title() for e in EMOTION_ORDER], fontsize=8, rotation=30)
+        [e.title() for e in EMOTIONS], fontsize=8, rotation=30)
 
     # Y ticks
     ax.tick_params(axis="y", labelsize=10)
@@ -69,7 +69,7 @@ def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
     ax.axhline(0, color="0.7", linewidth=1)
 
     # Vertical separators between emotions
-    for i in range(len(EMOTION_ORDER) - 1):
+    for i in range(len(EMOTIONS) - 1):
         ax.axvline(i + 0.5, color="0.9", linewidth=0.6, zorder=0)
     if legend:
         # Legend with short labels
@@ -89,56 +89,57 @@ def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
 
 
 def tri_plot(tidy2, i, j):
-  """
-  i is the plot columns, j is the boxes
-  """
-  # prepro steps to ensure consistency
-  # tidy2['emotion'] = tidy2['emotion'].fillna("total")
-  tidy2['emotion'] = pd.Categorical(tidy2['emotion'], categories=EMOTION_ORDER, ordered=True)
-  tidy2['show'] = pd.Categorical(tidy2['show'], categories=SHOW_ORDER, ordered=True)
-  tidy2['topic'] = pd.Categorical(tidy2['topic'], categories=TOPIC_ORDER, ordered=True)
+    """
+    i is the plot columns, j is the boxes
+    """
+    # prepro steps to ensure consistency
+    # tidy2['emotion'] = tidy2['emotion'].fillna("total")
+    tidy2['emotion'] = pd.Categorical(
+        tidy2['emotion'], categories=EMOTIONS, ordered=True)
+    tidy2['show'] = pd.Categorical(
+        tidy2['show'], categories=SHOWS, ordered=True)
+    tidy2['topic'] = pd.Categorical(
+        tidy2['topic'], categories=TOPIC_ORDER, ordered=True)
 
-  agg = (
-      tidy2
-      .groupby(['show', 'topic', 'emotion'], observed=True)['log_chaos_per_step_both_resid']
-      .mean()
-      .reset_index()
-  )
+    agg = (
+        tidy2[tidy2['topic'].isin(TOPIC_ORDER)]
+        .groupby(['show', 'topic', 'emotion'], observed=True)['log_chaos_per_step_both_resid']
+        .mean()
+        .reset_index()
+    )
 
-  agg = agg.query("topic in @TOPIC_ORDER")
+    agg = agg.query("topic in @TOPIC_ORDER")
 
+    fig, axes = plt.subplots(1, 3, figsize=(12, 5), sharey=True)
+    axes = axes.flatten()
 
-  fig, axes = plt.subplots(1, 3, figsize=(12,5), sharey=True)
-  axes = axes.flatten()
+    for ax, i_ in zip(axes, tidy2[i].cat.categories):
+        df_ = agg[agg[i] == i_]
 
-  for ax, i_ in zip(axes, tidy2[i].cat.categories):
-      df_ = agg[agg[i] == i_]
+        sns.barplot(
+            data=df_,
+            x=j,
+            y="log_chaos_per_step_both_resid",
+            hue="emotion",
+            hue_order=tidy2['emotion'].cat.categories,
+            palette=EMOTION_PALETTE,
+            ax=ax
+        )
+        ax.tick_params(axis='x', labelrotation=90)
+        ax.set_title(i_.upper())
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.get_legend().remove()
 
-      sns.barplot(
-          data=df_,
-          x=j,
-          y="log_chaos_per_step_both_resid",
-          hue="emotion",
-          hue_order=tidy2['emotion'].cat.categories,
-          palette=EMOTION_PALETTE,
-          ax=ax
-      )
-      ax.tick_params(axis='x', labelrotation=90)
-      ax.set_title(i_.upper())
-      ax.set_xlabel("")
-      ax.set_ylabel("")
-      ax.get_legend().remove()
+    # final legend outside
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles, labels,
+        title="Emotion",
+        bbox_to_anchor=(0.98, .95)
+    )
 
-  # final legend outside
-  handles, labels = axes[0].get_legend_handles_labels()
-  fig.legend(
-      handles, labels, 
-      title="Emotion", 
-      bbox_to_anchor=(0.98, .95)
-      )
-
-  # fig.suptitle("Mean Residual Log Chaos Per Step by Show × Topic × Emotion", y=0.98)
-  plt.tight_layout(rect=[0,0,0.85,0.97])
-  # plt.tight_layout()
-  plt.show()
-
+    # fig.suptitle("Mean Residual Log Chaos Per Step by Show × Topic × Emotion", y=0.98)
+    plt.tight_layout(rect=[0, 0, 0.85, 0.97])
+    # plt.tight_layout()
+    plt.show()

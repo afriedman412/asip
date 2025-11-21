@@ -3,9 +3,9 @@ piecemeal functions that are probably outdated
 get_sp_chars controls # of characters!
 """
 import pandas as pd
-from data_helpers import add_top_topics
+from .data_helpers import add_top_topics
 
-from config import (
+from .config import (
     SP_DF, SP_DF_TOPICS, SP_LINES, PREPRO,
     EMOTIONS, TOPICS
 )

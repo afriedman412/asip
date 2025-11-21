@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from config import TOPICS
+from .config import TOPICS, EMOTIONS
 
 
 def add_top_topics(df):
@@ -65,7 +65,7 @@ def parse_col(c):
     for c_ in TOPICS:
         if c_ in c:
             dicto['topic'] = c_
-    for c_ in ['anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'optimism']:
+    for c_ in EMOTIONS:
         if c_ in c:
             dicto['emotion'] = c_
     for c_ in ['chaos', 'movement', 'drift']:
