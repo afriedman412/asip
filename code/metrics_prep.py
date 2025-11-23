@@ -1,271 +1,208 @@
+# Cleaned and consolidated version of metrics_prep.py
+
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
-from .config import EPSILON, TOPICS, EMOTIONS, ALL_CHARS
-from .data_helpers import normalizer, parse_col
+from config import EPSILON, TOPICS, EMOTIONS, ALL_CHARS
+from data_helpers import normalizer, parse_col
 
+
+# ---------------------------------------------------------------------------
+#  Character-season aggregation
+# ---------------------------------------------------------------------------
 
 def build_char_season_from_counts(df, metrics=None, char_count_cols=ALL_CHARS):
     """
-    df rows:
-        - SP: one row per 8-line chunk, each row has count columns
-        (cartman=3, kyle=2, etc.)
-        - Other shows: one row per line, one-hot counts (speaker=1, others=0)
-
-    char_count_cols: list of columns with integer counts per row.
-        (this can be ALL_CHARS but go back to data for more characters)
-    metrics: list of emotion/topic/toxic columns.
-
-    Output:
-        (show, season, char) table with weighted metric means
+    Build (SHOW, SEASON, CHAR) weighted mean metrics.
+    df rows represent 8-line chunks (SP) or single lines (other shows).
     """
-
     if metrics is None:
         metrics = make_topic_emotion_metrics()
 
-    # reshape to long format
     long = df.melt(
-        id_vars=["show", "season"] + metrics,
+        id_vars=["SHOW", "SEASON"] + metrics,
         value_vars=char_count_cols,
-        var_name="char",
-        value_name="count_char"
+        var_name="CHAR",
+        value_name="COUNT_CHAR"
     )
 
-    # keep only characters that appear in that row
-    long = long[long["count_char"] > 0].copy()
-
-    # effective weight for this (row, char)
-    long["w"] = long["count_char"].astype(float)
+    long = long[long["COUNT_CHAR"] > 0].copy()
+    long["w"] = long["COUNT_CHAR"].astype(float)
 
     # weighted sums
     for m in metrics:
-        long[f"{m}_wsum"] = long[m] * long["w"]
+        long[f"{m}_WSUM"] = long[m] * long["w"]
 
     agg = (
-        long.groupby(["show", "season", "char"], as_index=False)
-            .agg({"w": "sum", **{f"{m}_wsum": "sum" for m in metrics}})
+        long.groupby(["SHOW", "SEASON", "CHAR"], as_index=False)
+            .agg({"w": "sum", **{f"{m}_WSUM": "sum" for m in metrics}})
     )
 
-    # convert weighted sums to weighted means
     for m in metrics:
-        agg[m] = agg[f"{m}_wsum"] / agg["w"]
-        agg.drop(columns=[f"{m}_wsum"], inplace=True)
+        agg[m] = agg[f"{m}_WSUM"] / agg["w"]
+        agg.drop(columns=[f"{m}_WSUM"], inplace=True)
 
-    # rename w → total count of lines spoken
-    agg.rename(columns={"w": "n_lines"}, inplace=True)
-
+    agg.rename(columns={"w": "N_LINES"}, inplace=True)
     return agg
 
 
-def compute_character_movement_per_metric(char_season_df, metric_cols):
-    """
-    For each (show, char), compute movement for EACH metric separately.
-    movement_metric = sum over seasons of absolute differences.
-    Returns: long-form DataFrame
-    """
-    out_rows = []
+# ---------------------------------------------------------------------------
+#  Movement / Drift / Chaos
+# ---------------------------------------------------------------------------
 
-    for (show, char), sub in char_season_df.groupby(["show", "char"]):
-        sub = sub.sort_values("season")
+def compute_character_movement_per_metric(char_season_df, metric_cols):
+    out_rows = []
+    for (show, char), sub in char_season_df.groupby(["SHOW", "CHAR"]):
+        sub = sub.sort_values("SEASON")
         vecs = sub[metric_cols].to_numpy()
 
-        # absolute difference per metric (season-to-season)
-        diffs = np.abs(vecs[1:] - vecs[:-1])
+        if len(vecs) < 2:
+            continue
 
-        # sum per metric
+        diffs = np.abs(vecs[1:] - vecs[:-1])
         movement_per_metric = diffs.sum(axis=0)
 
-        row = {"show": show, "char": char}
+        row = {"SHOW": show, "CHAR": char}
         for m, v in zip(metric_cols, movement_per_metric):
-            row[f"movement_{m}"] = v
-
+            row[f"MOVEMENT_{m}"] = v
         out_rows.append(row)
 
     return pd.DataFrame(out_rows)
 
 
-def compute_movement_drift_chaos(
-        char_season_df, metric_cols, name=None
-):
-    """
-    For each (show, char), compute:
-      - movement: total path length across seasons
-      - drift: straight-line distance from first to last season
-      - chaos: movement / drift
-      - n_steps: number of season-to-season jumps
-      - movement_per_step: movement / n_steps
-      - drift_per_step: drift / n_steps
-      - chaos_per_step: chaos / n_steps
-    """
+def compute_movement_drift_chaos(char_season_df, metric_cols, name=None):
     results = []
-
-    for (show, char), sub in char_season_df.groupby(["show", "char"]):
-        sub = sub.sort_values("season")
+    for (show, char), sub in char_season_df.groupby(["SHOW", "CHAR"]):
+        sub = sub.sort_values("SEASON")
         V = sub[metric_cols].to_numpy()
-
-        # Need at least 2 seasons to define a step
         if V.shape[0] < 2:
             continue
 
-        # Season-to-season deltas
         deltas = V[1:] - V[:-1]
+        movement = np.linalg.norm(deltas, axis=1).sum()
 
-        movement = np.linalg.norm(deltas, axis=1).sum()   # total path length
-        # straight-line vector
         drift_vec = V[-1] - V[0]
-        # straight-line distance
         drift_mag = np.linalg.norm(drift_vec)
-
-        # path / straight line
         chaos = movement / (drift_mag + EPSILON)
-        n_steps = V.shape[0] - 1                          # number of jumps
 
-        # Per-step versions (normalize by how many jumps we observed)
-        movement_per_step = movement / n_steps
-        drift_per_step = drift_mag / n_steps
-        chaos_per_step = chaos / n_steps
+        N_STEPS = V.shape[0] - 1
+        prefix = f"{name}_" if name else ""
 
-        prefix = f"{name}_" if name is not None else ""
-        row = {
-            "show": show,
-            "char": char,
-            "n_steps": n_steps,
-            f"{prefix}movement": movement,
-            f"{prefix}drift": drift_mag,
-            f"{prefix}chaos": chaos,
-            f"{prefix}movement_per_step": movement_per_step,
-            f"{prefix}drift_per_step": drift_per_step,
-            f"{prefix}chaos_per_step": chaos_per_step,
-        }
-
-        results.append(row)
+        results.append({
+            "SHOW": show,
+            "CHAR": char,
+            "N_STEPS": N_STEPS,
+            f"{prefix}MOVEMENT": movement,
+            f"{prefix}DRIFT": drift_mag,
+            f"{prefix}CHAOS": chaos,
+            f"{prefix}MOVEMENT_PER_STEP": movement / N_STEPS,
+            f"{prefix}DRIFT_PER_STEP": drift_mag / N_STEPS,
+            f"{prefix}CHAOS_PER_STEP": chaos / N_STEPS,
+        })
 
     return pd.DataFrame(results)
 
 
+# ---------------------------------------------------------------------------
+#  Topic–emotion interactions
+# ---------------------------------------------------------------------------
+
 def make_topic_emotion_metrics(df=None):
-    topic_emotion_metrics = []
+    names = [f"{t}__{e}" for t in TOPICS for e in EMOTIONS]
+    if df is None:
+        return names
+
+    # Build all new columns in a dict first
+    new_cols = {}
     for t in TOPICS:
         for e in EMOTIONS:
-            topic_emotion_metrics.append(f"{t}__{e}")
-            if df is not None:
-                df[f"{t}__{e}"] = df[t] * df[e]
-    if df is not None:
-        return df
-    else:
-        return topic_emotion_metrics
+            col_name = f"{t}__{e}"
+            new_cols[col_name] = df[t] * df[e]
+
+    # Add them all at once – avoids fragmentation
+    df = df.assign(**new_cols).copy()
+    return df
 
 
 def make_top_col_map():
-    topic_to_cols = {
-        t: [f"{t}__{e}" for e in EMOTIONS]
-        for t in TOPICS
-    }
-    return topic_to_cols
+    return {t: [f"{t}__{e}" for e in EMOTIONS] for t in TOPICS}
 
+
+# ---------------------------------------------------------------------------
+#  Movement wrappers
+# ---------------------------------------------------------------------------
 
 def make_movement(df):
     movement_dfs = []
-    topic_emotion_metrics = make_topic_emotion_metrics()
+    metrics = make_topic_emotion_metrics()
 
     for t in TOPICS:
-        mask = df['top_topic'] == t
-
+        mask = df['TOP_TOPIC'] == t
         char_season = build_char_season_from_counts(
-            df[mask],
-            topic_emotion_metrics,
-            ALL_CHARS
-        )
+            df[mask], metrics, ALL_CHARS)
 
+        topic_metrics = [f"{t}__{e}" for e in EMOTIONS]
         movement_df = compute_character_movement_per_metric(
-            char_season,
-            # ONLY the interactions for THIS topic
-            [f"{t}__{e}" for e in EMOTIONS]
-        ).rename(columns={"movement": f"movement_{t}"})
+            char_season, topic_metrics)
+        movement_dfs.append(movement_df.set_index(["SHOW", "CHAR"]))
 
-        movement_dfs.append(movement_df.set_index(['show', 'char']))
-
-    movement_df = pd.concat(movement_dfs, axis=1)
-    return movement_df
+    return pd.concat(movement_dfs, axis=1)
 
 
 def make_per_topic_emotion_movement(char_season):
-    """
-    Combines 2 functions that probably don't even need to be 2 loops
-    """
     dfs = []
-    topic_to_cols = make_top_col_map()
-
-    for t, cols in topic_to_cols.items():
-        df_t = compute_movement_drift_chaos(
-            char_season,
-            metric_cols=cols,
-            name=t  # will prefix movement/drift/chaos with topic name
-        )
-        dfs.append(df_t.set_index(["show", "char", "n_steps"]))
-
-    per_topic_mov = pd.concat(dfs, axis=1).reset_index()
+    for t, cols in make_top_col_map().items():
+        df_t = compute_movement_drift_chaos(char_season, cols, name=t)
+        dfs.append(df_t.set_index(["SHOW", "CHAR", "N_STEPS"]))
+    per_topic_mov = pd.concat(dfs, axis=1)
 
     dfs = []
     for t in TOPICS:
         for e in EMOTIONS:
             col = f"{t}__{e}"
-            df_te = compute_movement_drift_chaos(
-                char_season,
-                metric_cols=[col],
-                name=f"{t}__{e}"
-            )
-            dfs.append(df_te.set_index(["show", "char", "n_steps"]))
+            df_te = compute_movement_drift_chaos(char_season, [col], name=col)
+            dfs.append(df_te.set_index(["SHOW", "CHAR", "N_STEPS"]))
+    per_topic_emotion_mov = pd.concat(dfs, axis=1)
 
-    per_topic_emotion_mov = pd.concat(dfs, axis=1).reset_index()
+    return per_topic_mov.join(per_topic_emotion_mov).reset_index()
 
-    for p_ in [per_topic_mov, per_topic_emotion_mov]:
-        p_.set_index(['show', 'char', 'n_steps'], inplace=True)
 
-    all_movement_df = per_topic_mov.join(per_topic_emotion_mov)
-    return all_movement_df
-
+# ---------------------------------------------------------------------------
+#  Tidy + normalization
+# ---------------------------------------------------------------------------
 
 def tidy_movement_df(all_movement_df):
     long = all_movement_df.reset_index().melt(
-        id_vars=["show", "char", "n_steps"],
-        var_name="metric",
-        value_name="value"
+        id_vars=["SHOW", "CHAR", "N_STEPS"],
+        var_name="METRIC",
+        value_name="VALUE"
     )
-    tidy_df = long.merge(
-        pd.json_normalize(long['metric'].map(parse_col)),
-        left_index=True,
-        right_index=True
-    )[['show', 'char', 'n_steps', 'topic', 'emotion', 'measure', 'value']]
 
-    # tidy_df['emotion'] = tidy_df['emotion'].fillna("total")
+    meta = pd.json_normalize(long['METRIC'].map(parse_col))
+    tidy = pd.concat([long, meta], axis=1)[
+        ["SHOW", "CHAR", "N_STEPS", "TOPIC", "EMOTION", "MEASURE", "VALUE"]
+    ]
+    tidy["EMOTION"] = tidy["EMOTION"].fillna("TOTAL")
+    wide = tidy.pivot(
+        index=["SHOW", "CHAR", "TOPIC", "EMOTION", "N_STEPS"],
+        columns="MEASURE",
+        values="VALUE"
+    ).reset_index()
 
-    tidy2 = tidy_df.pivot(index=["show", "char", "topic", "emotion", 'n_steps'],
-                          columns="measure",
-                          values="value").reset_index()
-
-    tidy_adjusted = adjust_and_normalize(tidy2)
-    return tidy_df, tidy_adjusted
+    return tidy, adjust_and_normalize(wide)
 
 
-def adjust_and_normalize(df, col="chaos"):
-    """
-    Feature prep on chaos
-    """
-    assert col in df.columns, f"Missing {col} column"
-    assert "n_steps" in df.columns, "Missing n_steps column"
+def adjust_and_normalize(df, col="CHAOS"):
+    assert col in df.columns and "N_STEPS" in df.columns
 
-    log_ = f'log_{col}'
-    per_step = f'log_{col}_per_step'
+    df[f"LOG_{col}"] = np.log1p(df[col])
+    df[f"LOG_{col}_PER_STEP"] = np.log1p(df[col] / df["N_STEPS"])
 
-    df[log_] = np.log1p(df[col])
-    df[per_step] = np.log1p(df[col]/df['n_steps'])
+    for base in [f"LOG_{col}", f"LOG_{col}_PER_STEP"]:
+        df[f"{base}_CHAR_NORM"] = normalizer(df, "CHAR", base)
+        df[f"{base}_TOPIC_NORM"] = normalizer(df, "TOPIC", base)
 
-    for t in [log_, per_step]:
-        df[f"{t}_char_norm"] = normalizer(df, 'char', t)
-        df[f"{t}_topic_norm"] = normalizer(df, 'topic', t)
+        model = smf.ols(f"{base} ~ C(CHAR) + C(TOPIC)", data=df).fit()
+        df[f"{base}_BOTH_RESID"] = model.resid
 
-        # two-way residualization
-        model = smf.ols(f"{t} ~ C(char) + C(topic)", data=df).fit()
-        df[f"{t}_both_resid"] = model.resid
     return df

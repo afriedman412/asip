@@ -37,17 +37,20 @@ if GPU_AVAILABLE:
         print("loading cuml...")
         from cuml.preprocessing import StandardScaler
         from cuml.decomposition import PCA
+        from cuml.manifold import UMAP
         USING_GPU = True
     except Exception:
         # cuML not installed → fallback
         print("GPU not found ... loading sklearn...")
         from sklearn.preprocessing import StandardScaler
         from sklearn.decomposition import PCA
+        from umap import UMAP
         USING_GPU = False
 else:
     print("error ... loading sklearn...")
     from sklearn.preprocessing import StandardScaler
     from sklearn.decomposition import PCA
+    from umap import UMAP
     USING_GPU = False
 
 # ---- export flags ----

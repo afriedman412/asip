@@ -1,7 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from .config import EMOTIONS, TOPICS, SHOWS, TOPIC_PALETTE, EMOTION_PALETTE, LEGEND_LABELS, TOPIC_ORDER
+from redux import sil
+from config import (EMOTIONS, TOPICS, SHOWS, TOPIC_PALETTE, EMOTION_PALETTE,
+                    LEGEND_LABELS, TOPIC_ORDER)
 
 
 def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
@@ -9,9 +11,9 @@ def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
     Plot log chaos per step for a tidy df on a given axis.
 
     Expects columns:
-        - 'emotion'
-        - 'topic'
-        - 'log_chaos_per_step_both_resid'
+        - 'EMOTION'
+        - 'TOPIC'
+        - 'LOG_CHAOS_PER_STEP_BOTH_RESID'
     """
     df = tidy_df.copy()
 
@@ -20,21 +22,21 @@ def plot_chaos_bar(tidy_df, ax=None, title=None, legend=True):
         created_fig, ax = plt.subplots(figsize=(7, 5))
 
     # Set emotion/topic ordering
-    df['emotion'] = pd.Categorical(df['emotion'],
+    df['EMOTION'] = pd.Categorical(df['EMOTION'],
                                    categories=EMOTIONS,
                                    ordered=True)
 
     # Restrict topics to those actually present, but in canonical order
-    topics_present = [t for t in TOPICS if t in df['topic'].unique()]
-    df['topic'] = pd.Categorical(df['topic'],
+    topics_present = [t for t in TOPICS if t in df['TOPIC'].unique()]
+    df['TOPIC'] = pd.Categorical(df['TOPIC'],
                                  categories=topics_present,
                                  ordered=True)
 
     sns.barplot(
         data=df,
-        x="emotion",
-        y="log_chaos_per_step_both_resid",
-        hue="topic",
+        x="EMOTION",
+        y="LOG_CHAOS_PER_STEP_BOTH_RESID",
+        hue="TOPIC",
         hue_order=topics_present,
         palette={k: v for k, v in TOPIC_PALETTE.items() if k in topics_present},
         edgecolor="white",
@@ -94,21 +96,21 @@ def tri_plot(tidy2, i, j):
     """
     # prepro steps to ensure consistency
     # tidy2['emotion'] = tidy2['emotion'].fillna("total")
-    tidy2['emotion'] = pd.Categorical(
-        tidy2['emotion'], categories=EMOTIONS, ordered=True)
-    tidy2['show'] = pd.Categorical(
-        tidy2['show'], categories=SHOWS, ordered=True)
-    tidy2['topic'] = pd.Categorical(
-        tidy2['topic'], categories=TOPIC_ORDER, ordered=True)
+    tidy2['EMOTION'] = pd.Categorical(
+        tidy2['EMOTION'], categories=EMOTIONS, ordered=True)
+    tidy2['SHOW'] = pd.Categorical(
+        tidy2['SHOW'], categories=SHOWS, ordered=True)
+    tidy2['TOPIC'] = pd.Categorical(
+        tidy2['TOPIC'], categories=TOPIC_ORDER, ordered=True)
 
     agg = (
-        tidy2[tidy2['topic'].isin(TOPIC_ORDER)]
-        .groupby(['show', 'topic', 'emotion'], observed=True)['log_chaos_per_step_both_resid']
+        tidy2[tidy2['TOPIC'].isin(TOPIC_ORDER)]
+        .groupby(['SHOW', 'TOPIC', 'EMOTION'], observed=True)['LOG_CHAOS_PER_STEP_BOTH_RESID']
         .mean()
         .reset_index()
     )
 
-    agg = agg.query("topic in @TOPIC_ORDER")
+    agg = agg.query("TOPIC in @TOPIC_ORDER")
 
     fig, axes = plt.subplots(1, 3, figsize=(12, 5), sharey=True)
     axes = axes.flatten()
@@ -119,9 +121,9 @@ def tri_plot(tidy2, i, j):
         sns.barplot(
             data=df_,
             x=j,
-            y="log_chaos_per_step_both_resid",
-            hue="emotion",
-            hue_order=tidy2['emotion'].cat.categories,
+            y="LOG_CHAOS_PER_STEP_BOTH_RESID",
+            hue="EMOTION",
+            hue_order=tidy2['EMOTION'].cat.categories,
             palette=EMOTION_PALETTE,
             ax=ax
         )
@@ -143,3 +145,33 @@ def tri_plot(tidy2, i, j):
     plt.tight_layout(rect=[0, 0, 0.85, 0.97])
     # plt.tight_layout()
     plt.show()
+
+
+LABEL_MAP = {
+    "asip": "Always Sunny",
+    "office": "The Office",
+    "southpark": "South Park",
+}
+
+
+def plot_umap(
+    char_season,
+    category="SHOW",
+    ax=None,
+    sil_=None,
+    title=None,
+    legend=True,
+    **kwargs
+):
+    for c in char_season[category].unique():
+        mask = char_season[category] == c
+        ax.scatter(
+            char_season.loc[mask, 'UMAP1'],
+            char_season.loc[mask, 'UMAP2'],
+            label=LABEL_MAP.get(c, c),
+            alpha=0.3)
+        ax.set_title(title)
+    if sil_ is not None:
+        sil(char_season, category, sil_)
+    if legend:
+        ax.legend()

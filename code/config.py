@@ -3,96 +3,76 @@
 EPSILON = 0.01
 
 EMOTION_MODELS = [
-    "michellejieli/emotion_text_classifier",
-    # "mrm8488/t5-base-finetuned-emotion",
-    "cardiffnlp/twitter-roberta-base-emotion",
-    "j-hartmann/emotion-english-distilroberta-base",
-    "cardiffnlp/twitter-roberta-base-emotion-latest"
+    "michellejieli/emotion_text_classifier",          # MJM
+    "cardiffnlp/twitter-roberta-base-emotion",        # CDF0
+    "j-hartmann/emotion-english-distilroberta-base",  # HART
+    "cardiffnlp/twitter-roberta-base-emotion-latest"  # CDF1
 ]
 
 TOXICITY_MODEL = "unitary/toxic-bert"
 
 TOPIC_MODEL = "facebook/bart-large-mnli"
 
-
 MAIN_CHARS = {
-    'asip': [
-        'CHARLIE', 'DENNIS', 'FRANK', 'MAC', 'SWEET DEE'
+    'ASIP': [
+        'CHARLIE', 'DENNIS', 'FRANK', 'MAC', 'SWEET_DEE'
     ],
-    'office': [
-        'andy', 'angela', 'darryl', 'dwight', 'erin', 'jim', 'kevin', 'michael',
-        'oscar', 'pam', 'ryan'
+    'OFFICE': [
+        'ANDY', 'ANGELA', 'DARRYL', 'DWIGHT', 'ERIN', 'JIM',
+        'KEVIN', 'MICHAEL', 'OSCAR', 'PAM', 'RYAN'
     ],
-    'sp': [
-        'cartman', 'kyle', 'stan', 'randy', 'butters', 'sharon', 'stephen',
-        'wendy', 'mr. mackey', 'jimmy'
+    'SP': [
+        'CARTMAN', 'KYLE', 'STAN',
+        'RANDY', 'BUTTERS', 'SHARON', 'STEPHEN', 'WENDY', 'MR._MACKEY', 'JIMMY'
     ]
 
 }
 
-ALL_CHARS = MAIN_CHARS['asip'] + MAIN_CHARS['office'] + MAIN_CHARS['sp']
+ALL_CHARS = MAIN_CHARS['ASIP'] + MAIN_CHARS['OFFICE'] + MAIN_CHARS['SP']
 
-SHOWS = ['asip', 'office', 'southpark']
+SHOWS = list(MAIN_CHARS.keys())
 
 EMOTIONS = [
-    'anger',
-    'anticipation',
-    'disgust',
-    'fear',
-    'joy',
-    'love',
-    'optimism',
-    'pessimism',
-    'sadness',
-    'surprise',
-    'trust'
+    'ANGER',
+    'ANTICIPATION',
+    'DISGUST',
+    'FEAR',
+    'JOY',
+    'LOVE',
+    'NEUTRAL',
+    'OPTIMISM',
+    'PESSIMISM',
+    'SADNESS',
+    'SURPRISE',
+    'TRUST'
 ]
 
+
 EMO_COLS = [
-    'anger_mjm',
-    'disgust_mjm',
-    'fear_mjm',
-    'joy_mjm',
-    'sadness_mjm',
-    'surprise_mjm',
-    'anger_cardiff',
-    'joy_cardiff',
-    'optimism_cardiff',
-    'sadness_cardiff',
-    'anger_hartmann',
-    'disgust_hartmann',
-    'fear_hartmann',
-    'joy_hartmann',
-    'sadness_hartmann',
-    'surprise_hartmann',
-    'anger_new',
-    'anticipation_new',
-    'disgust_new',
-    'fear_new',
-    'joy_new',
-    'love_new',
-    'optimism_new',
-    'pessimism_new',
-    'sadness_new',
-    'surprise_new',
-    'trust_new'
+    'ANGER_MJM', 'DISGUST_MJM', 'FEAR_MJM', 'JOY_MJM', 'NEUTRAL_MJM',
+    'SADNESS_MJM', 'SURPRISE_MJM', 'ANGER_CDF0', 'JOY_CDF0',
+    'OPTIMISM_CDF0', 'SADNESS_CDF0', 'ANGER_HART', 'DISGUST_HART',
+    'FEAR_HART', 'JOY_HART', 'NEUTRAL_HART', 'SADNESS_HART',
+    'SURPRISE_HART', 'ANGER_CDF1', 'ANTICIPATION_CDF1', 'DISGUST_CDF1',
+    'FEAR_CDF1', 'JOY_CDF1', 'LOVE_CDF1', 'OPTIMISM_CDF1', 'PESSIMISM_CDF1',
+    'SADNESS_CDF1', 'SURPRISE_CDF1', 'TRUST_CDF1',
 ]
 
 
 TOXIC_COLS = [
+    'IDENTITY_HATE', 'INSULT', 'OBSCENE', 'SEVERE_TOXIC', 'THREAT', 'TOXIC'
+]
 
-    'identity_hate_toxic', 'insult_toxic', 'obscene_toxic', 'severe_toxic',
-    'threat_toxic', 'toxic_toxic'
+TOPICS_FULL = [
+    'SOCIOECONOMIC_CLASS_AND_INEQUALITY', 'RACE_AND_ETHNICITY',
+    'ELECTORAL_POLITICS_AND_GOVERNMENT', 'RELIGION_AND_FAITH',
+    'LGBTQ_ISSUES', 'GUN_POLICY_AND_FIREARMS',
+    'ILLEGAL_DRUGS_AND_SUBSTANCE_POLICY'
 ]
 
 TOPICS = [
-    "race and ethnicity",
-    "LGBTQ issues",
-    "gun policy and firearms",
-    "religion and faith",
-    "electoral politics and government",
-    "socioeconomic class and inequality",
-    "illegal drugs and substance policy",
+    'CLASS', 'RACE', 'POLITICS', 'RELIGION',
+    'GAYS', 'GUNS', 'DRUGS'
 ]
 
 ALL_METRICS = TOPICS + TOXIC_COLS + EMO_COLS

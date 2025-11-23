@@ -1,0 +1,76 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "show": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "Season": {
+      "dtype": "float64",
+      "_type": "Value"
+    },
+    "Episode": {
+      "dtype": "float64",
+      "_type": "Value"
+    },
+    "chunk_idx": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "topic_scores": {
+      "CLASS": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "DRUGS": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "GAYS": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "GUNS": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "NONE": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "POLITICS": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "RACE": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "RELIGION": {
+        "dtype": "float64",
+        "_type": "Value"
+      }
+    },
+    "zs_raw_labels": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    },
+    "zs_raw_scores": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "List"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

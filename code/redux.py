@@ -1,16 +1,26 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from umap import UMAP
+from gpu import UMAP
 from config import ALL_METRICS
 from sklearn.metrics import silhouette_score
 
 # this should import cuml if gpu is available
 from gpu import StandardScaler, PCA
 
+LABEL_MAP = {
+    "asip": "Always Sunny",
+    "office": "The Office",
+    "southpark": "South Park",
+}
 
-def sil(char_season, category="show"):
-    print(silhouette_score(char_season[["umap1", "umap2"]],
-                           char_season[category]))
+
+def sil(char_season, category="SHOW", text_=None):
+    if text_ is not None:
+        print(f"*** {text_}:")
+    sil_ = silhouette_score(
+        char_season[["UMAP1", "UMAP2"]],
+        char_season[category])
+    print(sil_)
+    return sil_
 
 
 def do_umap(char_season, metrics=ALL_METRICS, PCA_=None):
@@ -26,7 +36,7 @@ def do_umap(char_season, metrics=ALL_METRICS, PCA_=None):
     X = char_season[metrics].to_numpy()
     X_scaled = scaler.fit_transform(X)
 
-    w = char_season['n_lines'].to_numpy()
+    w = char_season['N_LINES'].to_numpy()
     w = w / w.mean()
 
     # Weight the *scaled* features
@@ -38,46 +48,49 @@ def do_umap(char_season, metrics=ALL_METRICS, PCA_=None):
     else:
         X_umap = um.fit_transform(Xw)
 
-    char_season['umap1'] = X_umap[:, 0]
-    char_season['umap2'] = X_umap[:, 1]
+    char_season['UMAP1'] = X_umap[:, 0]
+    char_season['UMAP2'] = X_umap[:, 1]
     return char_season
 
 
 def make_char_season(df, metrics=ALL_METRICS):
     """old version pre-SP char distributions"""
     char_season = (
-        df.groupby(['show', 'season', 'char'])[metrics]
+        df.groupby(['SHOW', 'SEASON', 'CHAR'])[metrics]
           .mean()
           .reset_index()
     )
 
-    char_season['n_lines'] = (
+    char_season['N_LINES'] = (
         df
-        .groupby(['show', 'season', 'char'])
+        .groupby(['SHOW', 'SEASON', 'CHAR'])
         .size()
-        .reset_index(name='n_lines')
-    )['n_lines']
+        .reset_index(name='N_LINES')
+    )['N_LINES']
     return char_season
 
 
-def plot_umap(
-        char_season, category=None,
-        title="UMAP (topics + emotion + toxicity)",
-        sil=True,
-        ax=None):
-    plt.figure(figsize=(7, 5))
-    plt.title(title)
-    if category is not None:
-        for c in char_season[category].unique():
-            mask = char_season[category] == c
-            plt.scatter(char_season.loc[mask, 'umap1'],
-                        char_season.loc[mask, 'umap2'], label=c, alpha=0.3)
-        plt.legend()
-    else:
-        plt.scatter(char_season['umap1'],
-                    char_season['umap2'], label=category, alpha=0.3)
-    plt.show()
-    if sil:
-        sil_ = sil(char_season[["umap1", "umap2"]],
-                   char_season[category])
-        print("Silhouette Score:", sil)
+def do_umap_unweighted(df, metrics=ALL_METRICS, PCA_=None, **umap_kwargs):
+    # Start with defaults
+    umap_params = dict(
+        n_neighbors=10,
+        min_dist=0.1,
+        metric='euclidean',
+    )
+    # Override with any user-specified kwargs
+    umap_params.update(umap_kwargs)
+
+    um = UMAP(**umap_params)
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(df[metrics].to_numpy())
+
+    if PCA_:
+        X_scaled = PCA(n_components=PCA_).fit_transform(X_scaled)
+
+    X_umap = um.fit_transform(X_scaled)
+
+    df_ = df.copy()
+    df_['UMAP1'] = X_umap[:, 0]
+    df_['UMAP2'] = X_umap[:, 1]
+    return df_

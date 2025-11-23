@@ -1,21 +1,33 @@
 import numpy as np
 import pandas as pd
-from .config import TOPICS, EMOTIONS
+from config import TOPICS, EMOTIONS
 
 
-def add_top_topics(df):
-    df["top_topic"] = (
-        df[TOPICS]
+def add_top_topics(df, topics=TOPICS):
+    df["TOP_TOPIC"] = (
+        df[topics]
         .astype(float)
         .fillna(-np.inf)     # so NaNs don't win
         .idxmax(axis=1)
     )
 
-    scores = df[TOPICS].astype(float).where(~df[TOPICS].isna(), -np.inf)
+    scores = df[topics].astype(float).where(~df[topics].isna(), -np.inf)
 
     vals = scores.to_numpy()
     top_idx = vals.argmax(axis=1)
-    df["top_topic_score"] = vals[np.arange(len(df)), top_idx]
+    df["TOP_TOPIC_SCORE"] = vals[np.arange(len(df)), top_idx]
+    return df
+
+
+def average_emotions(df, emotions=EMOTIONS, drop=True):
+    e_cols_ = []
+    for e in emotions:
+        e_cols = [c for c in df.columns if c.startswith(e)]
+        df[e] = df[e_cols].mean(axis=1)
+        if drop:
+            e_cols_ += e_cols
+    if drop:
+        df.drop(columns=e_cols_, inplace=True)
     return df
 
 
@@ -60,20 +72,30 @@ def consolidate_dialogue(df: pd.DataFrame) -> pd.DataFrame:
     return grouped
 
 
-def parse_col(c):
-    dicto = dict.fromkeys(['topic', 'emotion', 'measure'])
-    for c_ in TOPICS:
-        if c_ in c:
-            dicto['topic'] = c_
-    for c_ in EMOTIONS:
-        if c_ in c:
-            dicto['emotion'] = c_
-    for c_ in ['chaos', 'movement', 'drift']:
-        if c_ in c:
-            dicto['measure'] = c_
-    if "per_step" in c:
-        dicto['measure'] += "_per_step"
-    return dicto
+def parse_col(col):
+    parts = col.split("__")
+
+    # Topic-only metric
+    if len(parts) == 1:
+        topic = parts[0].split("_")[0]
+        rest = "_".join(parts[0].split("_")[1:])
+        return {
+            "TOPIC": topic,
+            "EMOTION": "TOTAL",
+            "MEASURE": rest
+        }
+
+    # Topic + emotion metric
+    else:
+        topic = parts[0]
+        emo_and_meas = parts[1].split("_")
+        emotion = emo_and_meas[0]
+        measure = "_".join(emo_and_meas[1:])
+        return {
+            "TOPIC": topic,
+            "EMOTION": emotion,
+            "MEASURE": measure
+        }
 
 
 def normalizer(df, g, t):
